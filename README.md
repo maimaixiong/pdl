@@ -1,5 +1,8 @@
 # Programmable digital line
 
+## Verilog Quick Reference Guide
+https://sutherland-hdl.com/pdfs/verilog_2001_ref_guide.pdf
+
 ## TEST
 ### LS7212
 

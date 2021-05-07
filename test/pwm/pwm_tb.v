@@ -21,6 +21,9 @@ module tb_PWM_Generator_Verilog;
  forever #5 clk = ~clk;
  end 
  initial begin
+  $dumpfile("sim_out.vcd");
+  $dumpvars;
+  $monitor("PWM_OUT=%b",PWM_OUT);
   increase_duty = 0;
   decrease_duty = 0;
   #100; 
@@ -47,6 +50,7 @@ module tb_PWM_Generator_Verilog;
     decrease_duty = 1;
   #100;//decrease duty cycle by 10%
     decrease_duty = 0;
+  #100 $finish;
  end
 endmodule
 

@@ -31,9 +31,9 @@ https://www.maximintegrated.com/en/design/technical-documents/app-notes/1/107.ht
 - Input: Enable (High is active)
 
 - Output: out[0..7]
-    - delay_a/b is 32bit or 4Bytes register
-    - delay_a[0..7] :delay time between trigger and out[0..7]                          unit is :10ns 
-    - delay_b[0..7] :delay time between rising edge and falling edge of out[0..7]      unit is :10ns
+    - dl/wb is 32bit or 4Bytes register
+    - dl[0..7] :delay time between trigger and out[0..7]                          unit is :10ns 
+    - wd[0..7] :delay time between rising edge and falling edge of out[0..7]      unit is :10ns
 
 
 

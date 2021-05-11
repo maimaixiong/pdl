@@ -8,7 +8,6 @@ module tb_pdl;
  reg [31:0] dl;
  reg reset;
  reg trigger;
- reg enable;
  // Outputs
  wire delay_out;
 
@@ -18,7 +17,6 @@ module tb_pdl;
   .clk(clk), 
   .reset(reset),
   .trigger(trigger),
-  .enable(enable),
   .delay_out(delay_out)
  );
 
@@ -31,23 +29,22 @@ module tb_pdl;
  initial begin
   $dumpfile("sim_out.vcd");
   $dumpvars;
-  $monitor("OUT=%b",delay_out);
+  $monitor("OUT=%b, wb=%d, dl=%d",delay_out, wb, dl);
 
-  wb = 10;
-  dl = 10;
+  wb = 1;
+  dl = 1;
 
   #100; 
     reset  = 1; 
   #100;
     reset = 0;
   #100; 
-    enable  = 1;
     trigger = 0;
   #100;
     trigger = 1;
   #50;
-    wb = 16;
-    dl = 18;
+    wb = 2;
+    dl = 2;
   #100; 
     trigger = 0;
   #100;

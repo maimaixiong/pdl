@@ -10,24 +10,33 @@ module pdl
       input clk, // clock input 100Mhz, jitter is 10ns
       input reset, // timer reset  
       input trigger, // trigger input
-      input enable,  // active high
       output reg delay_out // delay output
 );
 
+/*
+* FSM State
+*
+    * WAIT_TRIG_RISING      OUTPUT=0  WHEN trigger_rising
+    * DELAY                 OUTPUT=0  WHEN timer_delay > dl
+    * DELAY_OUT             OUTPUT=1  WHEN timer_width > wb
+    * WAIT_TRIG_RISING (GO BACK)
+    *
+*/
+parameter 
+    FSM_WAIT_TRIG_RISING=3'b000,
+    FSM_DELAY=3'b001,
+    FSM_DELAY_OUT=3'b011;
+    
+ reg [2:0] current_state, next_state;
+
  reg [N-1:0] PULSE_WIDTH ;  
  reg [N-1:0] DELAY;  
- reg [N-1:0] TIMER=0;  
-
- reg mode;
+ reg [N-1:0] TIMER_DELAY=0;  
+ reg [N-1:0] TIMER_WIDTH=0;  
 
  reg trigger_sync_1=0,trigger_sync_2=0;  
+ reg timer_delay_enable = 0, timer_width_enable;
  wire trigger_rising,trigger_falling;  
- 
- reg timer_start=0,out_low=0;  
- wire timer_clear2,timer_clear3,timer_clear;  
- 
- reg reset_timer1=0,reset_timer2=0,reset_timer=0;  
- wire reset_timer3,reset_det;  
  
  reg reset_det1=0,reset_det2=0; 
 
@@ -35,9 +44,6 @@ always @(posedge clk)
  begin  
            trigger_sync_1 <= trigger;           // the first Flip-Flop  
            trigger_sync_2 <= trigger_sync_1;    // the second Flip-Flop  
-
-           reset_timer1 <= reset_timer;  
-           reset_timer2 <= reset_timer1;  
 
            reset_det1 <= reset;  
            reset_det2 <= reset_det1;
@@ -47,69 +53,85 @@ always @(posedge clk)
  // Identify the zero to one transitions on trigger signal  
  assign trigger_rising = trigger_sync_1 & (~trigger_sync_2);   
  assign trigger_falling = trigger_sync_2 & (~trigger_sync_1);   
- assign reset_timer3 = reset_timer1 & (~reset_timer2);  
- assign reset_det = reset_det2 & (~reset_det1);  
 
  // sample wb and dl 
- always @(trigger_rising,trigger_falling, wb, dl, enable)  
+ always @(trigger_rising,trigger_falling, wb, dl)  
  begin  
       if(trigger_falling == 1 || trigger_rising == 1) begin  
            PULSE_WIDTH = wb;  
            DELAY = dl;  
-           mode = enable;  
       end  
  end   
-
- always @(posedge clk or posedge timer_clear)  
- begin  
- if(timer_clear)   
-      TIMER <= 0;  
- else if(timer_start)  
-      TIMER <= TIMER + 1;  
- end  
- assign timer_clear = reset_timer3 | trigger_rising == 1 | timer_clear3 ;  
- assign timer_clear2 = (trigger_rising == 1)|(trigger_falling == 1);  
- assign timer_clear3 = timer_clear2; //& (mode == 2'b11);  
-
- //delay output  
- always @(posedge clk)  
- begin  
-      if(out_low == 1)  
-           delay_out <= 0;  
-      else  
-           delay_out <= 1;  
- end 
-
- always @(mode,reset,trigger_falling,trigger_rising,TIMER,reset,trigger,PULSE_WIDTH,DELAY,reset_det)  
+ 
+ always @(posedge clk, posedge reset)
  begin
-     if(reset) begin  
-         out_low <= 1;  
-         timer_start <= 0;  
-         reset_timer <= 1;  
-    end  
-    else if(reset_det==1 && trigger==1) begin  
-         timer_start <= 1;  
-         reset_timer <= 0;  
-    end  
-    else if(trigger_rising==1) begin  
-         timer_start <= 1;  
-         reset_timer <= 0;  
-         end  
-    else if(trigger_falling==1 || trigger == 0) begin  
-         out_low <= 1;  
-         reset_timer <= 1;  
-         timer_start <= 0;  
-    end  
-    else if(TIMER >= DELAY) begin  
-         out_low <= 0;  
-         timer_start <= 0;  
-         reset_timer <= 1;  
-    end  
-    else if(TIMER >= PULSE_WIDTH) begin
-        out_low <= 1;
+     if(reset == 1)
+         current_state <= FSM_WAIT_TRIG_RISING;
+     else
+         current_state <= next_state;
+ end
+
+
+ always @(posedge clk or posedge timer_delay_enable or posedge timer_width_enable)  
+ begin  
+
+    if(timer_delay_enable)
+    begin
+         TIMER_DELAY <= TIMER_DELAY + 1;  
+    end
+
+    if(timer_width_enable)
+    begin
+        TIMER_WIDTH <= TIMER_WIDTH + 1;
     end
 
  end  
 
+ always @(current_state, trigger_rising)
+ begin
+     case(current_state)
+         FSM_WAIT_TRIG_RISING:
+            begin
+                TIMER_DELAY = 0;
+                TIMER_WIDTH = 0;
+                
+                if(trigger_rising) 
+                begin
+                    next_state = FSM_DELAY;
+                    timer_width_enable = 0;
+                    timer_delay_enable = 1;
+                end
+            end
+         FSM_DELAY: 
+            begin
+                if(TIMER_DELAY > DELAY) 
+                begin
+                    next_state = FSM_DELAY_OUT;
+                    TIMER_WIDTH = 0;
+                    timer_width_enable = 1;
+                    timer_delay_enable = 0;
+                end
+            end
+         FSM_DELAY_OUT: 
+            begin
+                if(TIMER_WIDTH > PULSE_WIDTH)
+                begin
+                    next_state = FSM_WAIT_TRIG_RISING;
+                end
+            end
+         default:
+             next_state = FSM_WAIT_TRIG_RISING;
+     endcase
+ end
+
+
+ always @(current_state)
+ begin
+     case(current_state)
+         FSM_WAIT_TRIG_RISING: delay_out = 0; 
+         FSM_DELAY:            delay_out = 0;
+         FSM_DELAY_OUT:        delay_out = 1;
+    endcase
+ end
 
  endmodule  

@@ -83,7 +83,7 @@ always @(posedge clk)
  always @(mode,reset,trigger_falling,trigger_rising,TIMER,reset,trigger,PULSE_WIDTH,DELAY,reset_det)  
  begin
      if(reset) begin  
-         out_low <= 0;  
+         out_low <= 1;  
          timer_start <= 0;  
          reset_timer <= 1;  
     end  
@@ -96,15 +96,19 @@ always @(posedge clk)
          reset_timer <= 0;  
          end  
     else if(trigger_falling==1 || trigger == 0) begin  
-         out_low <= 0;  
+         out_low <= 1;  
          reset_timer <= 1;  
          timer_start <= 0;  
     end  
     else if(TIMER >= DELAY) begin  
-         out_low <= 1;  
+         out_low <= 0;  
          timer_start <= 0;  
          reset_timer <= 1;  
     end  
+    else if(TIMER >= PULSE_WIDTH) begin
+        out_low <= 1;
+    end
+
  end  
 
 

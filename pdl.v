@@ -87,7 +87,7 @@ always @(posedge clk)
 
  end  
 
- always @(current_state, trigger_rising)
+ always @(current_state, trigger_rising, TIMER_WIDTH, TIMER_DELAY)
  begin
      case(current_state)
          FSM_WAIT_TRIG_RISING:

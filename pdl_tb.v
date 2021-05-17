@@ -31,20 +31,20 @@ module tb_pdl;
   $dumpvars;
   $monitor("OUT=%b, wb=%d, dl=%d",delay_out, wb, dl);
 
-  wb = 1;
-  dl = 1;
+  wb = 5;
+  dl = 8;
 
   #100; 
-    reset  = 1; 
+    reset  = 0; 
   #100;
-    reset = 0;
+    reset = 1;
   #100; 
     trigger = 0;
   #100;
     trigger = 1;
   #50;
-    wb = 2;
-    dl = 2;
+    wb = 5;
+    dl = 8;
   #100; 
     trigger = 0;
   #100;

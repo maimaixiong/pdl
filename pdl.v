@@ -1,3 +1,7 @@
+/*
+* https://web.eecs.umich.edu/~prabal/teaching/eecs373-f10/labs/lab5/index.html
+*/
+
 module pdl  
 #(
           parameter N = 32,
@@ -13,32 +17,19 @@ module pdl
       output reg delay_out // delay output
 );
 
-/*
-* FSM State
-*
-    * WAIT_TRIG_RISING      OUTPUT=0  WHEN trigger_rising
-    * DELAY                 OUTPUT=0  WHEN timer_delay > dl
-    * DELAY_OUT             OUTPUT=1  WHEN timer_width > wb
-    * WAIT_TRIG_RISING (GO BACK)
-    *
-*/
-parameter 
-    FSM_WAIT_TRIG_RISING=3'b000,
-    FSM_DELAY=3'b001,
-    FSM_DELAY_OUT=3'b011;
-    
- reg [2:0] current_state, next_state;
+ reg [2:0] fsm_clk;
 
- reg [N-1:0] PULSE_WIDTH ;  
- reg [N-1:0] DELAY;  
- reg [N-1:0] TIMER_DELAY=0;  
- reg [N-1:0] TIMER_WIDTH=0;  
+ reg [N-1:0] DL ;  
+ reg [N-1:0] TH;  
+ reg [N-1:0] counter=0;  
 
  reg trigger_sync_1=0,trigger_sync_2=0;  
  reg timer_delay_enable = 0, timer_width_enable;
  wire trigger_rising,trigger_falling;  
  
  reg reset_det1=0,reset_det2=0; 
+ reg TimerEn = 0;
+ reg LoadEnReg = 0;
 
 always @(posedge clk)  
  begin  
@@ -54,84 +45,75 @@ always @(posedge clk)
  assign trigger_rising = trigger_sync_1 & (~trigger_sync_2);   
  assign trigger_falling = trigger_sync_2 & (~trigger_sync_1);   
 
- // sample wb and dl 
- always @(trigger_rising,trigger_falling, wb, dl)  
- begin  
-      if(trigger_falling == 1 || trigger_rising == 1) begin  
-           PULSE_WIDTH = wb;  
-           DELAY = dl;  
-      end  
- end   
- 
- always @(posedge clk, posedge reset)
- begin
-     if(reset == 1)
-         current_state <= FSM_WAIT_TRIG_RISING;
-     else
-         current_state <= next_state;
+always @(posedge clk or negedge reset)
+
+if ( ~reset ) begin  
+    counter <= 32'h00000000;
  end
-
-
- always @(posedge clk or posedge timer_delay_enable or posedge timer_width_enable)  
- begin  
-
-    if(timer_delay_enable)
-    begin
-         TIMER_DELAY <= TIMER_DELAY + 1;  
-    end
-
-    if(timer_width_enable)
-    begin
-        TIMER_WIDTH <= TIMER_WIDTH + 1;
-    end
-
- end  
-
- always @(current_state, trigger_rising, TIMER_WIDTH, TIMER_DELAY)
+else
  begin
-     case(current_state)
-         FSM_WAIT_TRIG_RISING:
-            begin
-                TIMER_DELAY = 0;
-                TIMER_WIDTH = 0;
-                
-                if(trigger_rising) 
-                begin
-                    next_state = FSM_DELAY;
-                    timer_width_enable = 0;
-                    timer_delay_enable = 1;
-                end
-            end
-         FSM_DELAY: 
-            begin
-                if(TIMER_DELAY > DELAY) 
-                begin
-                    next_state = FSM_DELAY_OUT;
-                    TIMER_WIDTH = 0;
-                    timer_width_enable = 1;
-                    timer_delay_enable = 0;
-                end
-            end
-         FSM_DELAY_OUT: 
-            begin
-                if(TIMER_WIDTH > PULSE_WIDTH)
-                begin
-                    next_state = FSM_WAIT_TRIG_RISING;
-                end
-            end
-         default:
-             next_state = FSM_WAIT_TRIG_RISING;
-     endcase
+     begin
+         if(LoadEnReg == 1'b1)
+         begin
+             counter <= 32'h00000000;
+         end
+     else if (TimerEn == 1'b1)
+     begin
+         counter <= counter + 1;
+     end
  end
+end
 
-
- always @(current_state)
+always @( posedge clk)
  begin
-     case(current_state)
-         FSM_WAIT_TRIG_RISING: delay_out = 0; 
-         FSM_DELAY:            delay_out = 0;
-         FSM_DELAY_OUT:        delay_out = 1;
+     case(fsm_clk)
+         2'b00: delay_out = 0; 
+         2'b01: delay_out = 0;
+         2'b11: delay_out = 1;
     endcase
  end
 
- endmodule  
+ 
+ always@(posedge clk or negedge reset)
+ if (~ reset)
+ begin
+     fsm_clk <= 2'b00;
+     TH <= 32'h00000000;
+     DL <= 32'h00000000;
+     LoadEnReg <= 1'b1;
+     TimerEn <= 1'b0;
+ end
+ else
+ begin
+     case (fsm_clk)
+         2'b00: begin
+             if ( trigger_rising == 1 ) 
+             begin
+                LoadEnReg <= 1'b1;
+                TimerEn <= 1'b0;
+                DL = dl;
+                fsm_clk <= 2'b01;
+            end
+         end
+
+         2'b01: begin
+             LoadEnReg <= 1'b0;
+             TimerEn <= 1'b1;
+
+             if ( counter == DL )
+             begin
+                TH = dl + wb;
+                fsm_clk <= 2'b11;
+            end
+         end
+
+         2'b11: begin
+             if ( counter == TH )
+             begin
+                 fsm_clk <= 2'b00;
+             end
+         end
+    endcase
+end
+
+endmodule  

@@ -3,6 +3,10 @@
 ## Verilog Quick Reference Guide
 https://sutherland-hdl.com/pdfs/verilog_2001_ref_guide.pdf
 
+
+https://athena.ecs.csus.edu/~changw/class_docs/VerilogManual/delays.html
+https://web.eecs.umich.edu/~prabal/teaching/eecs373-f10/labs/lab5/index.html
+
 ## TEST
 ### LS7212
 
